@@ -1,59 +1,62 @@
+# Importing essential libraries for data manipulation, analysis, and visualization
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from itertools import combinations_with_replacement
 
+#Necessary pre-processing steps
 class Preprocessing:
     def __init__(self, path,test_size=0.2, val_size=0.2):
-        self.df = pd.read_csv(path)
+        self.df = pd.read_csv(path) # Load the dataset into a pandas DataFrame
         self.test_size = test_size
         self.val_size = val_size
         self.outliers = None
 
-    def check_missing_value(self):
-        self.n_missing = self.df.isnull().sum()
-        self.df = self.df.dropna()
+    def check_missing_value(self): # Identify and remove missing values from the dataset
+        self.n_missing = self.df.isnull().sum() # Count the number of missing values in each column
+        self.df = self.df.dropna() # Drop rows with missing values from the dataset
 
     def find_outliers(self):
+        # Detect outliers in the dataset using the IQR method
         outlier_counts = pd.Series(0, index=self.df.index)
         for col in self.df.columns:
             if self.df[col].dtype in ['float64', 'int64']:
-                Q1 = self.df[col].quantile(0.25)
-                Q3 = self.df[col].quantile(0.75)
-                IQR = Q3 - Q1
+                Q1 = self.df[col].quantile(0.25) # Calculate the first quartile (25th percentile)
+                Q3 = self.df[col].quantile(0.75) # Calculate the third quartile (75th percentile)
+                IQR = Q3 - Q1  # Calculate the Interquartile Range (IQR)
                 lower_bound = Q1 - 1.5 * IQR
                 upper_bound = Q3 + 1.5 * IQR
-                col_outliers = (self.df[col] < lower_bound) | (self.df[col] > upper_bound)
+                col_outliers = (self.df[col] < lower_bound) | (self.df[col] > upper_bound) # Identify outliers
                 outlier_counts += col_outliers.astype(int)
-        self.outliers = self.df[outlier_counts >= 2]
+        self.outliers = self.df[outlier_counts >= 2] # Store rows with at least two outliers
 
-    def remove_outliers(self):
+    def remove_outliers(self): # Remove rows identified as outliers from the dataset
         if self.outliers is None:
             self.find_outliers()
-        self.df = self.df.drop(self.outliers.index)
+        self.df = self.df.drop(self.outliers.index) # Drop the rows corresponding to the outliers
 
-    def create_boxplot(self):
+    def create_boxplot(self): # Create and save boxplots for each feature in the dataset
         plt.figure(figsize=(15, 10))
         for i, col in enumerate(self.df.columns[:-1], 1):
             plt.subplot(2, 5, i)
             sns.boxplot(y=self.df[col])
             plt.title(col)
         plt.tight_layout()
-        plt.savefig('boxplot.png')
+        plt.savefig('boxplot.png')  # Save the generated boxplots as a PNG file
 
-    def check_correlation(self,correlation_threshold=0.8):
+    def check_correlation(self,correlation_threshold=0.8): # Analyze and visualize correlations between features, and remove highly correlated variables
         x_df = self.df.iloc[:, :-1]
-        sns.pairplot(x_df)
+        sns.pairplot(x_df) # Create scatter plots for each pair of features
         plt.suptitle('Scatterplot', y=1.02)
-        plt.savefig('Scatterplot.png')
+        plt.savefig('Scatterplot.png') # Save the scatter plots as a PNG file
 
-        self.correlation_matrix = x_df.corr()
+        self.correlation_matrix = x_df.corr() # Calculate the correlation matrix for the features
         plt.figure(figsize=(12, 10))
-        sns.heatmap(self.correlation_matrix, annot=True, cmap='coolwarm', center=0)
+        sns.heatmap(self.correlation_matrix, annot=True, cmap='coolwarm', center=0) # Plot the heatmap of correlations
         plt.title('Correlation matrix')
-        plt.savefig('Heatmap.png')
-
+        plt.savefig('Heatmap.png') # Save the heatmap as a PNG file
+        # Identify pairs of features with high correlation
         high_corr_pairs = [(col1, col2) for col1 in self.correlation_matrix.columns
                            for col2 in self.correlation_matrix.columns
                            if
@@ -62,17 +65,17 @@ class Preprocessing:
         for col1, col2 in high_corr_pairs:
             if col1 not in self.vars_to_remove:
                 self.vars_to_remove.add(col2)
-        self.df = self.df.drop(columns=list(self.vars_to_remove))
+        self.df = self.df.drop(columns=list(self.vars_to_remove)) # Drop the highly correlated variables
 
-    def describe_variables(self):
+    def describe_variables(self): # Provide descriptive statistics of the dataset
         self.n_label = self.df['y'].value_counts()
         self.var_description = self.df.iloc[:, :-1].describe()
         self.var_description = pd.DataFrame(self.var_description)
         latex_table = self.var_description.to_latex(index=True)
-        with open('variables.tex', 'w') as f:
+        with open('variables.tex', 'w') as f:  # Save the LaTeX table to a file
             f.write(latex_table)
 
-    def standardize_df(self):
+    def standardize_df(self): # Standardize the features to have a mean of 0 and a standard deviation of 1
         X = self.df.iloc[:, :-1]
         y = self.df.iloc[:, -1]
         means = X.mean()
@@ -81,7 +84,7 @@ class Preprocessing:
         X_standardized_df = pd.DataFrame(X_standardized, columns=X.columns)
         self.df_stand = pd.concat([X_standardized_df, y], axis=1)
 
-    def divide_df(self):
+    def divide_df(self): # Split the standardized dataset into training, testing, and validation sets
         X = self.df_stand.iloc[:, :-1].values
         y = self.df_stand.iloc[:, -1].values
         num_samples = X.shape[0]
@@ -90,10 +93,10 @@ class Preprocessing:
         split_index = int(num_samples * (1 - self.test_size))
         train_indices = indices[:split_index]
         test_indices = indices[split_index:]
-        self.X_train = X[train_indices]
-        self.y_train = y[train_indices]
-        self.X_test = X[test_indices]
-        self.y_test = y[test_indices]
+        self.X_train = X[train_indices] # Create the training feature set
+        self.y_train = y[train_indices] # Create the training target variable set
+        self.X_test = X[test_indices] # Create the testing feature set
+        self.y_test = y[test_indices] # Create the testing target variable set
         self.df_train = pd.DataFrame(self.X_train, columns=self.df_stand.columns[:-1])
         self.df_train['y'] = self.y_train
         val_size = int(len(self.df_train) * self.val_size)
@@ -102,10 +105,10 @@ class Preprocessing:
         add_indices = indices[val_size:]
         self.df_val = self.df_train.loc[val_indices]
         self.df_add = self.df_train.loc[add_indices]
-        self.X_add = self.df_add.iloc[:, :-1].values
-        self.y_add = self.df_add.iloc[:, -1].values
-        self.X_val = self.df_val.iloc[:, :-1].values
-        self.y_val = self.df_val.iloc[:, -1].values
+        self.X_add = self.df_add.iloc[:, :-1].values #Create the training feature set
+        self.y_add = self.df_add.iloc[:, -1].values #Create the training target variable set
+        self.X_val = self.df_val.iloc[:, :-1].values #Create the validation feature set
+        self.y_val = self.df_val.iloc[:, -1].values #Create the validation target variables set
 
 class Perceptron:
     def __init__(self, epochs=None):
@@ -114,53 +117,53 @@ class Perceptron:
         self.best_accuracy = 0
         self.w = None
 
-    def perceptron_train(self, X, y, max_epochs):
+    def perceptron_train(self, X, y, max_epochs): # Train the Perceptron using the given training data
         m, n = X.shape
-        self.w = np.zeros(n)
+        self.w = np.zeros(n) # Initialize the weight vector to zeros
         epoch = 0
         while epoch < max_epochs:
-            updates = False
+            updates = False # Flag to track if any weights are updated
             for i in range(m):
-                if y[i] * np.dot(self.w, X[i]) <= 0:
+                if y[i] * np.dot(self.w, X[i]) <= 0: # If the prediction is incorrect, update the weights
                     self.w += y[i] * X[i]
-                    updates = True
-            if not updates:
+                    updates = True # Set flag to True indicating an update occurred
+            if not updates: # If no weights were updated, training is complete
                 break
-            epoch += 1
+            epoch += 1 # Increment the epoch counter
         print(f"Training terminates after {epoch} epochs.")
-        return self.w
+        return self.w # Return the learned weight vector
 
-    def perceptron_predict(self, X):
-        return np.sign(np.dot(X,self.w))
+    def perceptron_predict(self, X): # Predict the labels for the given data using the learned weights
+        return np.sign(np.dot(X,self.w)) # Return the sign of the dot product between X and weights
 
-    def cross_validate(self, X, y, k=5):
+    def cross_validate(self, X, y, k=5): # Perform k-fold cross-validation to select the best number of epochs
         n = len(y)
         fold_size = n // k
         for epoch in self.epochs:
             print(f"Testing epochs: {epoch}")
             accuracies = []
-            for i in range(k):
+            for i in range(k): # Iterate over each fold
                 start, end = i * fold_size, (i + 1) * fold_size
                 X_val, y_val = X[start:end], y[start:end]
                 X_add = np.concatenate((X[:start], X[end:]), axis=0)
                 y_add = np.concatenate((y[:start], y[end:]), axis=0)
                 self.w = self.perceptron_train(X_add, y_add, epoch)
                 y_pred = self.perceptron_predict(X_val)
-                accuracy = np.mean(y_val == y_pred)
+                accuracy = np.mean(y_val == y_pred) # Compute the accuracy for this fold
                 print(f"accuracy: {accuracy}")
-                accuracies.append(accuracy)
-            mean_accuracy = np.mean(accuracies)
+                accuracies.append(accuracy) # Store the accuracy
+            mean_accuracy = np.mean(accuracies) # Compute the mean accuracy across all folds
             print(f"Mean accuracy for epochs {epoch}: {mean_accuracy:.4f}")
-            if mean_accuracy > self.best_accuracy:
+            if mean_accuracy > self.best_accuracy: # Update the best accuracy and corresponding epochs
                 self.best_accuracy = mean_accuracy
                 self.best_max_epochs = epoch
         print(f"Best max epochs = {self.best_max_epochs} with accuracy = {self.best_accuracy:.4f}")
-        return self.best_max_epochs
+        return self.best_max_epochs  # Return the best number of epochs
 
-    def compute_test_accuracy(self, X_train, y_train, X_test, y_test):
+    def compute_test_accuracy(self, X_train, y_train, X_test, y_test): # Evaluate the Perceptron on the test set using the best number of epochs
         self.w = self.perceptron_train(X_train, y_train, self.best_max_epochs)
         y_pred = self.perceptron_predict(X_test)
-        self.accuracy = np.mean(y_test != y_pred)
+        self.accuracy = np.mean(y_test != y_pred) # Compute the misclassification rate
         print(f"Misclassification rate: {self.accuracy:.4f}")
 
 class Pegasos:
@@ -174,28 +177,28 @@ class Pegasos:
         self.best_lambd = None
         self.best_T = None
 
-    def fit_pegasos(self,T, lambd, X, y, eta):
+    def fit_pegasos(self,T, lambd, X, y, eta): # Train the Pegasos algorithm with specified parameters
         m, d = X.shape
-        self.w = np.zeros(d)
+        self.w = np.zeros(d) # Initialize the weight vector to zeros
         for t in range(1, T + 1):
             i = np.random.randint(m)
-            xi, yi = X[i], y[i]
-            if yi * np.dot(self.w, xi) < 1:
-                grad = lambd * self.w - yi * xi
+            xi, yi = X[i], y[i] # Get the sample and its label
+            if yi * np.dot(self.w, xi) < 1: # Check if the sample is misclassified
+                grad = lambd * self.w - yi * xi # Compute gradient if misclassified
             else:
-                grad = lambd * self.w
-            self.w -= eta(t) * grad
-        return self.w
+                grad = lambd * self.w # Compute gradient if correctly classified
+            self.w -= eta(t) * grad # Update the weight vector using the learning rate function
+        return self.w # Return the trained weight vector
 
-    def predict(self, X):
+    def predict(self, X): # Predict the labels for the given data using the trained weights
         return np.sign(X.dot(self.w))
 
-    def cross_validate(self, X, y):
+    def cross_validate(self, X, y):  # Perform k-fold cross-validation to find the best hyperparameters
         n = len(y)
         fold_size = n // self.k
-        for T in self.T_values:
-            for lambd in self.lambd_values:
-                for eta in self.eta_functions:
+        for T in self.T_values:  # Iterate over different values for T
+            for lambd in self.lambd_values:  # Iterate over different values for lambda
+                for eta in self.eta_functions:  # Iterate over different learning rate functions
                     scores = []
                     for i in range(self.k):
                         start, end = i * fold_size, (i + 1) * fold_size
@@ -206,9 +209,9 @@ class Pegasos:
                         y_pred = self.predict(X_val)
                         score = np.mean(y_val == y_pred)
                         scores.append(score)
-                    mean_score = np.mean(scores)
+                    mean_score = np.mean(scores) # Compute the mean accuracy across all folds
                     print(f"T={T}, lambda={lambd}, eta={eta.__name__}: mean accuracy={mean_score:.4f}")
-                    if mean_score > self.best_score:
+                    if mean_score > self.best_score: # Update the best parameters if current score is higher
                         self.best_score = mean_score
                         self.best_eta = eta
                         self.best_lambd = lambd
@@ -216,10 +219,10 @@ class Pegasos:
         print(
             f"Best T = {self.best_T}, Best lambda = {self.best_lambd}, Best eta = {self.best_eta.__name__}, Best score = {self.best_score:.4f}")
 
-    def compute_test_accuracy(self, X_train, y_train, X_test, y_test):
+    def compute_test_accuracy(self, X_train, y_train, X_test, y_test): # Evaluate the Pegasos algorithm on the test set using the best hyperparameters
         self.w = self.fit_pegasos(self.best_T, self.best_lambd, X_train, y_train, self.best_eta)
         y_pred = self.predict(X_test)
-        self.accuracy = np.mean(y_test != y_pred)
+        self.accuracy = np.mean(y_test != y_pred) # Compute the misclassification rate
         print(f"Misclassification rate: {self.accuracy:.4f}")
 
 class Logistic:
@@ -233,33 +236,33 @@ class Logistic:
         self.best_lambd = None
         self.best_T = None
 
-    def sigmoid(self,z):
+    def sigmoid(self,z):  # Compute the sigmoid function
         return 1 / (1 + np.exp(-z))
 
-    def fit_logistic(self,X, y, lambd, T, eta):
+    def fit_logistic(self,X, y, lambd, T, eta): # Train the Logistic Regression model with specified parameters
         m, d = X.shape
-        self.w = np.zeros(d)
+        self.w = np.zeros(d) # Initialize the weight vector to zeros
         for t in range(1,T+1):
             idx = np.random.randint(m)
             x_t = X[idx]
             y_t = y[idx]
-            self.sigma = self.sigmoid(np.dot(x_t, self.w))
-            y_bin = (y_t + 1) / 2
-            gradient = (self.sigma - y_bin) * x_t
-            gradient += lambd * self.w
-            self.w -= eta(t) * gradient
-        return self.w
+            self.sigma = self.sigmoid(np.dot(x_t, self.w)) # Compute the predicted probability using the sigmoid function
+            y_bin = (y_t + 1) / 2  # Convert the label to binary (0 or 1)
+            gradient = (self.sigma - y_bin) * x_t  # Compute the gradient of the loss function
+            gradient += lambd * self.w  # Add regularization term to the gradient
+            self.w -= eta(t) * gradient  # Update the weight vector using the learning rate function
+        return self.w  # Return the trained weight vector
 
-    def predict_logistic(self,X):
+    def predict_logistic(self,X): # Predict the labels for the given data using the trained weights
         predictions = self.sigmoid(np.dot(X, self.w))
-        return np.where(predictions >= 0.5, 1, -1)
+        return np.where(predictions >= 0.5, 1, -1) # Convert probabilities to class labels (1 or -1)
 
-    def cross_validate(self, X, y):
+    def cross_validate(self, X, y): # Perform k-fold cross-validation to find the best hyperparameters
         n = len(y)
         fold_size = n // self.k
-        for T in self.T_values:
-            for lambd in self.lambd_values:
-                for eta in self.eta_functions:
+        for T in self.T_values:  # Iterate over different values for T
+            for lambd in self.lambd_values:  # Iterate over different values for lambda
+                for eta in self.eta_functions:  # Iterate over different learning rate functions
                     scores = []
                     for i in range(self.k):
                         start, end = i * fold_size, (i + 1) * fold_size
@@ -270,21 +273,21 @@ class Logistic:
                         predictions = self.predict_logistic(X_val)
                         score = np.mean(predictions == y_val)
                         scores.append(score)
-                    mean_score = np.mean(scores)
+                    mean_score = np.mean(scores) # Compute the mean accuracy across all folds
                     print(f"T={T}, lambda={lambd}, eta={eta.__name__}: mean accuracy={mean_score:.4f}")
-                    if mean_score > self.best_score:
+                    if mean_score > self.best_score: # Update the best parameters if current score is higher
                         self.best_score = mean_score
                         self.best_eta = eta
                         self.best_lambd = lambd
                         self.best_T = T
         print(
             f"Best T = {self.best_T}, Best lambda = {self.best_lambd}, Best eta = {self.best_eta.__name__}, Best score = {self.best_score:.4f}")
-        return self.best_T, self.best_lambd, self.best_eta
+        return self.best_T, self.best_lambd, self.best_eta # Return the best hyperparameters
 
-    def compute_test_accuracy(self, X_train, y_train, X_test, y_test):
+    def compute_test_accuracy(self, X_train, y_train, X_test, y_test): # Evaluate the Logistic Regression model on the test set using the best hyperparameters
         self.w = self.fit_logistic(X_train, y_train, self.best_lambd, self.best_T,self.best_eta)
         y_pred = self.predict_logistic(X_test)
-        self.accuracy = np.mean(y_test != y_pred)
+        self.accuracy = np.mean(y_test != y_pred) # Compute the misclassification rate
         print(f"Misclassification rate: {self.accuracy:.4f}")
         return self.accuracy
 
@@ -292,14 +295,14 @@ class Feature_expansion:
     def __init__(self):
         pass
 
-    def polynomial_feature_expansion(self,X, degree=2):
+    def polynomial_feature_expansion(self,X, degree=2): # Perform polynomial feature expansion up to a given degree
         m, d = X.shape
         if degree != 2:
             raise NotImplementedError("This function currently only supports degree 2.")
-        self.poly_features = [X]
-        for i in range(d):
+        self.poly_features = [X] # Start with the original features
+        for i in range(d): # Add squared features for each feature
             self.poly_features.append(X[:, i:i + 1] ** 2)
-        for i in range(d):
+        for i in range(d): # Add interaction terms for each pair of features
             for j in range(i + 1, d):
                 self.poly_features.append(X[:, i:i + 1] * X[:, j:j + 1])
         self.poly_features =  np.hstack(self.poly_features)
@@ -309,7 +312,7 @@ class Linear_weight:
     def __init__(self):
         pass
 
-    def create_table(self,w_perceptron, w_pegasos, w_logistic,df):
+    def create_table(self,w_perceptron, w_pegasos, w_logistic,df): # Create a LaTeX table displaying feature weights for different models
         self.features = df.columns.tolist()[:-1]
         self.data = {
             'Feature': self.features,
@@ -323,7 +326,7 @@ class Linear_weight:
         with open('weights_original.tex', 'w') as f:
             f.write(latex_table)
 
-    def create_plot(self,w_perceptron, w_pegasos, w_logistic):
+    def create_plot(self,w_perceptron, w_pegasos, w_logistic): # Create a plot comparing feature weights across different models
         features_to_plot = self.features
         weights_to_plot = {
             'perceptron': w_perceptron,
@@ -342,7 +345,7 @@ class Linear_weight:
         plt.tight_layout()
         plt.savefig('weights.png')
 
-    def create_table_poly(self,w_poly_perceptron,w_poly_pegasos, w_poly_logistic):
+    def create_table_poly(self,w_poly_perceptron,w_poly_pegasos, w_poly_logistic): # Create a LaTeX table displaying polynomial feature weights for different models
         variables = [f"x{i + 1}" for i in range(len(self.features))]
         names = []
         for i in range(len(variables)):
@@ -364,16 +367,16 @@ class Linear_weight:
 
 class Kernelized_perceptron:
     def __init__(self):
-        self.S = []
-        self.y_S = []
+        self.S = []  # Support vectors
+        self.y_S = []  # Labels of support vectors
 
-    def gaussian_kernel(self,x1, x2, sigma):
+    def gaussian_kernel(self,x1, x2, sigma): # Compute the Gaussian (RBF) kernel between two vectors
         return np.exp(-np.linalg.norm(x1 - x2) ** 2 / (2 * sigma ** 2))
 
-    def polynomial_kernel(self,x1, x2, degree=3, c=1):
+    def polynomial_kernel(self,x1, x2, degree=3, c=1): # Compute the polynomial kernel between two vectors
         return (np.dot(x1, x2) + c) ** degree
 
-    def train_kernel_perceptron(self,X, y, kernel_function, epochs=1):
+    def train_kernel_perceptron(self,X, y, kernel_function, epochs=1): # Train the kernelized perceptron model using the specified kernel function
         converged = False
         for epoch in range(epochs):
             error_count = 0
@@ -381,12 +384,12 @@ class Kernelized_perceptron:
                 xt = X[t]
                 yt = y[t]
                 kernel_sum = sum(self.y_S[i] * kernel_function(self.S[i], xt) for i in range(len(self.S)))
-                y_pred = np.sign(kernel_sum)
-                if y_pred != yt:
+                y_pred = np.sign(kernel_sum) # Predict the class
+                if y_pred != yt: # Update support vectors if prediction is wrong
                     self.S.append(xt)
                     self.y_S.append(yt)
                     error_count += 1
-            if error_count == 0:
+            if error_count == 0: #Check for convergence
                 print(f"Converged after {epoch + 1} epochs.")
                 converged = True
                 break
@@ -394,18 +397,18 @@ class Kernelized_perceptron:
             print("Did not converge within the maximum number of epochs.")
         return self.S, self.y_S
 
-    def predict_kernel_perceptron(self,X, kernel_function):
+    def predict_kernel_perceptron(self,X, kernel_function): # Predict using the kernelized perceptron model
         self.y_pred = []
         for x in X:
             kernel_sum = sum(self.y_S[i] * kernel_function(self.S[i], x) for i in range(len(self.S)))
             self.y_pred.append(np.sign(kernel_sum))
         return np.array(self.y_pred)
 
-    def tune_hyperparameters(self, X_add, y_add, X_val, y_val, kernel_type, params, epochs_list):
+    def tune_hyperparameters(self, X_add, y_add, X_val, y_val, kernel_type, params, epochs_list): # Tune hyperparameters for the kernelized perceptron
         self.best_score = -np.inf
         self.best_params = {}
         if kernel_type == 'gaussian':
-            for sigma in params['sigmas']:
+            for sigma in params['sigmas']: # Test different sigma values for the Gaussian kernel
                 for epochs in epochs_list:
                     print(f"Testing sigma={sigma} and epochs={epochs}")
                     self.S, self.y_S = self.train_kernel_perceptron(X_add, y_add,
@@ -418,7 +421,7 @@ class Kernelized_perceptron:
                         self.best_score = accuracy
                         self.best_params = {'sigma': sigma, 'epochs': epochs}
             self.best_kernel = 'gaussian'
-        elif kernel_type == 'polynomial':
+        elif kernel_type == 'polynomial': # Test different degrees and constants for the Polynomial kernel
             for degree in params['degrees']:
                 for c in params['cs']:
                     for epochs in epochs_list:
@@ -441,7 +444,7 @@ class Kernelized_perceptron:
         print(f"Best parameters: {self.best_params}")
         print(f"Best score: {self.best_score}")
 
-    def compute_accuracy(self, X_train, y_train, X_test, y_test, kernel_type):
+    def compute_accuracy(self, X_train, y_train, X_test, y_test, kernel_type): # Compute accuracy on test data using the best hyperparameters
         if kernel_type == 'gaussian':
             if 'sigma' not in self.best_params or 'epochs' not in self.best_params:
                 raise ValueError("Gaussian kernel parameters not set. Run tune_hyperparameters first.")
@@ -462,15 +465,15 @@ class Kernelized_perceptron:
 
 class Kernelized_pegasos:
     def __init__(self):
-        self.alpha = None
+        self.alpha = None # Dual coefficients for support vectors
 
-    def gaussian_kernel(self,x1, x2, sigma):
+    def gaussian_kernel(self,x1, x2, sigma): # Compute the Gaussian (RBF) kernel between two vectors
         return np.exp(-np.linalg.norm(x1 - x2) ** 2 / (2 * sigma ** 2))
 
-    def polynomial_kernel(self,x1, x2, degree=3, c=1):
+    def polynomial_kernel(self,x1, x2, degree=3, c=1): # Compute the polynomial kernel between two vectors
         return (np.dot(x1, x2) + c) ** degree
 
-    def train_pegasos(self,S, lambda_, T, kernel_function, x, y):
+    def train_pegasos(self,S, lambda_, T, kernel_function, x, y): # Train the Kernelized Pegasos model using the specified kernel function
         self.alpha = np.zeros(len(S), dtype=float)
         for t in range(1,T+1):
             it = np.random.randint(0, len(S))
@@ -481,18 +484,18 @@ class Kernelized_pegasos:
                 self.alpha[it] += 1
         return self.alpha
 
-    def predict_kernel_pegasos(self, x_new, x, y, kernel_function):
+    def predict_kernel_pegasos(self, x_new, x, y, kernel_function): # Predict using the Kernelized Pegasos model
         sum_term = 0
         for j in range(len(x)):
             sum_term += self.alpha[j] * y[j] * kernel_function(x_new, x[j])
         self.prediction = np.sign(sum_term)
         return self.prediction
 
-    def tune_hyperparameters(self, X_add, y_add, X_val, y_val, kernel_type, params, T_values, lambda_values):
+    def tune_hyperparameters(self, X_add, y_add, X_val, y_val, kernel_type, params, T_values, lambda_values): # Tune hyperparameters for the Kernelized Pegasos model
         self.best_score = -np.inf
         self.best_params = {}
         if kernel_type == 'gaussian':
-            for sigma in params['sigmas']:
+            for sigma in params['sigmas']: # Test different sigma values for the Gaussian kernel
                 for lambda_ in lambda_values:
                     for T in T_values:
                         print(f"Testing sigma={sigma}, lambda={lambda_}, T={T}")
@@ -505,7 +508,7 @@ class Kernelized_pegasos:
                             self.best_score = accuracy
                             self.best_params = {'sigma': sigma, 'lambda': lambda_, 'T': T}
             self.best_kernel = 'gaussian'
-        elif kernel_type == 'polynomial':
+        elif kernel_type == 'polynomial':  # Test different degrees and constants for the Polynomial kernel
             for degree in params['degrees']:
                 for c in params['cs']:
                     for lambda_ in lambda_values:
@@ -525,7 +528,7 @@ class Kernelized_pegasos:
         print(f"Best parameters: {self.best_params}")
         print(f"Best score: {self.best_score}")
 
-    def compute_accuracy(self, X_train, y_train, X_test, y_test, kernel_type):
+    def compute_accuracy(self, X_train, y_train, X_test, y_test, kernel_type): # Compute accuracy on test data using the best hyperparameters
         if kernel_type == 'gaussian':
             if 'sigma' not in self.best_params or 'lambda' not in self.best_params or 'T' not in self.best_params:
                 raise ValueError("Gaussian kernel parameters not set. Run tune_hyperparameters first.")
