@@ -417,6 +417,7 @@ class Kernelized_perceptron:
                     y_pred = self.predict_kernel_perceptron(X_val,
                                                             lambda x1, x2: self.gaussian_kernel(x1, x2, sigma))
                     accuracy = np.mean(y_pred == y_val)
+                    print(f'Accuracy: {accuracy}')
                     if accuracy > self.best_score:
                         self.best_score = accuracy
                         self.best_params = {'sigma': sigma, 'epochs': epochs}
