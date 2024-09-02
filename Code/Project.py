@@ -359,7 +359,7 @@ class Linear_weight:
             "w_Pegasos": w_poly_pegasos,
             "w_logistic": w_poly_logistic
         })
-        blocchi = [df[i:i + 11].reset_index(drop=True) for i in range(0, len(df), 11)]
+        blocchi = [df[i:i + 22].reset_index(drop=True) for i in range(0, len(df), 22)]
         self.df_poly_w = pd.concat(blocchi, axis=1)
         latex_table = self.df_poly_w.to_latex(index=True)
         with open('weights_poly.tex', 'w') as f:
@@ -444,6 +444,7 @@ class Kernelized_perceptron:
         print(f"Best kernel: {self.best_kernel}")
         print(f"Best parameters: {self.best_params}")
         print(f"Best score: {self.best_score}")
+        return self.best_params
 
     def compute_accuracy(self, X_train, y_train, X_test, y_test, kernel_type): # Compute accuracy on test data using the best hyperparameters
         if kernel_type == 'gaussian':
@@ -462,6 +463,7 @@ class Kernelized_perceptron:
         y_pred = self.predict_kernel_perceptron(X_test, kernel_function)
         correct_predictions = np.sum(y_pred != y_test)
         self.accuracy = correct_predictions / len(y_test)
+        print(f'Misclassification Rate: {self.accuracy}')
         return self.accuracy
 
 class Kernelized_pegasos:
@@ -505,6 +507,7 @@ class Kernelized_pegasos:
                         alpha = self.train_pegasos(S, lambda_, T, K, X_add, y_add)
                         y_pred = np.array([self.predict_kernel_pegasos(x, X_add, y_add, K) for x in X_val])
                         accuracy = np.mean(y_pred == y_val)
+                        print(f'Accuracy: {accuracy}')
                         if accuracy > self.best_score:
                             self.best_score = accuracy
                             self.best_params = {'sigma': sigma, 'lambda': lambda_, 'T': T}
@@ -550,4 +553,5 @@ class Kernelized_pegasos:
 
         y_pred = np.array([self.predict_kernel_pegasos(x, X_train, y_train, kernel_function) for x in X_test])
         self.accuracy = np.mean(y_pred != y_test)
+        print(f'Misclassification Rate: {self.accuracy}')
         return self.accuracy
